@@ -2,7 +2,7 @@
 # using: 
 # Revision: 1.19 
 # Source: /local/reps/CMSSW/CMSSW/Configuration/Applications/python/ConfigBuilder.py,v 
-# with command line options: Configuration/GenProduction/python/RDst-InclusiveHbToDstMu-no-acceptance-fragment.py --fileout file:RDst-InclusiveHbToDstMu-no-acceptance.root --mc --eventcontent RAWSIM --datatier GEN --conditions 106X_upgrade2018_realistic_v11_L1v1 --beamspot Realistic25ns13TeVEarly2018Collision --step GEN --geometry DB:Extended --era Run2_2018 --python_filename RDst-InclusiveHbToDstMu-no-acceptance_cfg.py --no_exec cmsDriver.py Configuration/GenProduction/python/RDst-InclusiveHbToDstMu-no-acceptance-fragment-evtgen.py --fileout file:RDst-InclusiveHbToDstMu-no-acceptance-evtgen.root --mc --eventcontent RAWSIM --datatier GEN --conditions 106X_upgrade2018_realistic_v11_L1v1 --beamspot Realistic25ns13TeVEarly2018Collision --step GEN --geometry DB:Extended --era Run2_2018 --python_filename RDst-InclusiveHbToDstMu-no-acceptance_cfg.py --no_exec
+# with command line options: Configuration/GenProduction/python/RDst-InclusiveHbToDstMu-no-acceptance-fragment.py --fileout file:RDst-InclusiveHbToDstMu-no-acceptance.root --mc --eventcontent RAWSIM --datatier GEN --conditions 106X_upgrade2018_realistic_v11_L1v1 --beamspot Realistic25ns13TeVEarly2018Collision --step GEN --geometry DB:Extended --era Run2_2018 --python_filename RDst-InclusiveHbToDstMu-no-acceptance_cfg.py --no_exec cmsDriver.py Configuration/GenProduction/python/RDst-InclusiveHbToDstMu-no-acceptance-fragment-pythia.py --fileout file:RDst-InclusiveHbToDstMu-no-acceptance-pythia.root --mc --eventcontent RAWSIM --datatier GEN --conditions 106X_upgrade2018_realistic_v11_L1v1 --beamspot Realistic25ns13TeVEarly2018Collision --step GEN --geometry DB:Extended --era Run2_2018 --python_filename RDst-InclusiveHbToDstMu-no-acceptance-pythia_cfg.py --no_exec
 import FWCore.ParameterSet.Config as cms
 
 from Configuration.Eras.Era_Run2_2018_cff import Run2_2018
@@ -55,7 +55,7 @@ process.RAWSIMoutput = cms.OutputModule("PoolOutputModule",
         filterName = cms.untracked.string('')
     ),
     eventAutoFlushCompressedSize = cms.untracked.int32(20971520),
-    fileName = cms.untracked.string('file:RDst-InclusiveHbToDstMu-no-acceptance-evtgen.root'),
+    fileName = cms.untracked.string('file:RDst-InclusiveHbToDstMu-no-acceptance-pythia.root'),
     outputCommands = process.RAWSIMEventContent.outputCommands,
     splitLevel = cms.untracked.int32(0)
 )
