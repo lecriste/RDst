@@ -138,7 +138,10 @@ def decayChainToLabel(particle, label='', generation=0):
     return label
     
 handles = OrderedDict()
-handles['genp'   ] = ('genParticles', Handle('std::vector<reco::GenParticle>'))
+#handles['genp'   ] = ('genParticles', Handle('std::vector<reco::GenParticle>'))
+# for MINIAOD
+handles['genp'   ] = ('prunedGenParticles', Handle('std::vector<reco::GenParticle>'))
+
 handles['genInfo'] = ('generator'   , Handle('GenEventInfoProduct'           ))
 
 files = glob(inputFile)
