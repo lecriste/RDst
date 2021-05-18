@@ -18,6 +18,7 @@ import particle
 from particle import Particle
 
 parser = argparse.ArgumentParser(description='')
+parser.add_argument('--inputFile'    , dest='inputFile'    , required=True, type=str)
 parser.add_argument('--files_per_job', dest='files_per_job', default=2    , type=int)
 parser.add_argument('--jobid'        , dest='jobid'        , default=0    , type=int)
 parser.add_argument('--verbose'      , dest='verbose'      , action='store_true' )
@@ -25,6 +26,7 @@ parser.add_argument('--destination'  , dest='destination'  , default='.'  , type
 parser.add_argument('--maxevents'    , dest='maxevents'    , default=-1   , type=int)
 args = parser.parse_args()
 
+inputFile     = args.inputFile
 files_per_job = args.files_per_job
 jobid         = args.jobid
 verbose       = args.verbose
@@ -139,15 +141,15 @@ handles = OrderedDict()
 handles['genp'   ] = ('genParticles', Handle('std::vector<reco::GenParticle>'))
 handles['genInfo'] = ('generator'   , Handle('GenEventInfoProduct'           ))
 
-files  = glob('/pnfs/psi.ch/cms/trivcat/store/user/manzoni/RDst_InclusiveHbToDstMu_no_accecptance_GEN_19apr21_v2/*root')
+files = glob(inputFile)
+
 # events = Events(files[:20])
 events = Events(files)
+maxevents = maxevents if maxevents>=0 else events.size() # total number of events in the files
 
-logfile = open('RDst_InclusiveHbToDstMu_no_acceptance_fullstat_test.txt', 'w')
+logfile = open(inputFile.replace('.root','.txt'), 'w')
 
 start = time()
-# maxevents = 2e5
-maxevents = maxevents if maxevents>=0 else events.size() # total number of events in the files
 
 alldecays = dict()
 
@@ -166,7 +168,7 @@ branches = [
 decay_index = {}
 next_decay_index = 0
 
-fout = ROOT.TFile('decay_info.root', 'recreate')
+fout = ROOT.TFile('decay_info-'+inputFile, 'recreate')
 ntuple = ROOT.TNtuple('tree', 'tree', ':'.join(branches))
 decayIndexNtuple = ROOT.TNtuple('decayIndexTree', 'decayIndexTree', 'decayIndex')
 tofill = OrderedDict(zip(branches, [np.nan]*len(branches)))
@@ -328,7 +330,7 @@ sorted_all_decays_merged = OrderedDict(sorted(sorted_all_decays_merged.items(), 
 
 sorted_decay_index = {decay_name: index for index, decay_name in enumerate(sorted_all_decays_merged.keys())}
 
-with open("decay_dictionary", "w") as decay_dict_out:
+with open("decay_dictionary-"+inputFile.replace('.root','.txt'), "w") as decay_dict_out:
     for index, decay_name in enumerate(sorted_all_decays_merged.keys()):
         print(index, decay_name, file = decay_dict_out)
 
@@ -342,7 +344,7 @@ ntuple.Write()
 decayIndexNtuple.Write()
 fout.Close()
 
-with open('decay_no_acceptance_fullstat_test.pkl', 'wb') as fout:
+with open('decay_test-'+inputFile.replace('.root','.pkl'), 'wb') as fout:
 #     pickle.dump(sorted_all_decays, fout)
     pickle.dump(sorted_all_decays_merged, fout)
 
