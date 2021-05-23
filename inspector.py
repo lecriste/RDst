@@ -141,9 +141,10 @@ def hasSecondD(muAncestors):
     return any([(ianc.pdgId() > 400 and ianc.pdgId() < 500) or (ianc.pdgId() > 4000 and ianc.pdgId() < 5000) for ianc in muAncestors])
     
 handles = OrderedDict()
-#handles['genp'   ] = ('genParticles', Handle('std::vector<reco::GenParticle>'))
+
+handles['genp'   ] = ('genParticles', Handle('std::vector<reco::GenParticle>'))
 # for MINIAOD
-handles['genp'   ] = ('prunedGenParticles', Handle('std::vector<reco::GenParticle>'))
+#handles['genp'   ] = ('prunedGenParticles', Handle('std::vector<reco::GenParticle>'))
 
 handles['genInfo'] = ('generator'   , Handle('GenEventInfoProduct'           ))
 
@@ -153,7 +154,7 @@ files = glob(inputFile)
 events = Events(files)
 maxevents = maxevents if maxevents>=0 else events.size() # total number of events in the files
 
-logfile = open(inputFile.replace('.root','.txt'), 'w')
+logfile = open(destination+inputFile.replace('.root','.txt'), 'w')
 
 start = time()
 
@@ -414,7 +415,7 @@ sorted_all_decays_merged = OrderedDict(sorted(sorted_all_decays_merged.items(), 
 
 sorted_decay_index = {decay_name: index for index, decay_name in enumerate(sorted_all_decays_merged.keys())}
 
-with open("decay_dictionary-"+inputFile.replace('.root','.txt'), "w") as decay_dict_out:
+with open(destination+"decay_dictionary-"+inputFile.replace('.root','.txt'), "w") as decay_dict_out:
     for index, decay_name in enumerate(sorted_all_decays_merged.keys()):
         print(index, decay_name, file = decay_dict_out)
 
@@ -429,7 +430,7 @@ ntuple.Write()
 decayIndexNtuple.Write()
 fout.Close()
 
-with open('decay_test-'+inputFile.replace('.root','.pkl'), 'wb') as fout:
+with open(destination+'decay_test-'+inputFile.replace('.root','.pkl'), 'wb') as fout:
 #     pickle.dump(sorted_all_decays, fout)
     pickle.dump(sorted_all_decays_merged, fout)
 
