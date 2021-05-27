@@ -84,7 +84,9 @@ def printAncestors(particle, ancestors=[], verbose=True):
         if abs(mum.pdgId())<8 or \
            abs(mum.pdgId())==21 or \
            abs(mum.pdgId()) in diquarks or\
-           abs(mum.pdgId()) in excitedBs: continue
+           abs(mum.pdgId()) in excitedBs or\
+           abs(mum.eta()) > 1000: # beam protons
+            continue
         # don't count B oscillations
         if mum.pdgId() == -particle.pdgId() and abs(particle.pdgId()) in [511, 531]:
             continue 
@@ -259,6 +261,7 @@ for i, event in enumerate(events):
             ids.ancestors = ancestorsds
 
         if len(ids.ancestors)==0 or len(imu.ancestors)==0: continue
+        if ids in imu.ancestors: continue
         if (imu.charge()*ids.charge() > 0): continue #same charge, cannot be a single B0
 
         if ids.ancestors[-1] != imu.ancestors[-1]: continue
