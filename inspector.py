@@ -18,15 +18,15 @@ import particle
 from particle import Particle
 
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('--inputFile'    , dest='inputFile'    , required=True, type=str)
+parser.add_argument('--inputFiles'    , dest='inputFiles'    , required=True, type=str)
 parser.add_argument('--files_per_job', dest='files_per_job', default=2    , type=int)
 parser.add_argument('--jobid'        , dest='jobid'        , default=0    , type=int)
 parser.add_argument('--verbose'      , dest='verbose'      , action='store_true' )
-parser.add_argument('--destination'  , dest='destination'  , default='.'  , type=str)
+parser.add_argument('--destination'  , dest='destination'  , default='./'  , type=str)
 parser.add_argument('--maxevents'    , dest='maxevents'    , default=-1   , type=int)
 args = parser.parse_args()
 
-inputFile     = args.inputFile
+inputFiles     = args.inputFiles
 files_per_job = args.files_per_job
 jobid         = args.jobid
 verbose       = args.verbose
@@ -144,19 +144,28 @@ def hasSecondD(muAncestors):
     
 handles = OrderedDict()
 
-handles['genp'   ] = ('genParticles', Handle('std::vector<reco::GenParticle>'))
+#handles['genp'   ] = ('genParticles', Handle('std::vector<reco::GenParticle>'))
 # for MINIAOD
-#handles['genp'   ] = ('prunedGenParticles', Handle('std::vector<reco::GenParticle>'))
+handles['genp'   ] = ('prunedGenParticles', Handle('std::vector<reco::GenParticle>'))
 
-handles['genInfo'] = ('generator'   , Handle('GenEventInfoProduct'           ))
+handles['genInfo'] = ('generator', Handle('GenEventInfoProduct'))
 
-files = glob(inputFile)
+files = glob(inputFiles)
+if ('txt' in inputFiles):
+  with open(inputFiles) as f:
+    files = f.read().splitlines()
+    files = ["root://cmsxrootd.fnal.gov/"+localFile for localFile in files]
+else:
+  print("files:", files)
+
+#fileName = files[0] # need to strip path
+fileName = "inspectorOut"
 
 # events = Events(files[:20])
 events = Events(files)
 maxevents = maxevents if maxevents>=0 else events.size() # total number of events in the files
 
-logfile = open(destination+inputFile.replace('.root','.txt'), 'w')
+logfile = open(destination+fileName+'.txt', 'w')
 
 start = time()
 
@@ -211,7 +220,7 @@ branches = [
 decay_index = {}
 next_decay_index = 0
 
-fout = ROOT.TFile('decay_info-'+inputFile, 'recreate')
+fout = ROOT.TFile('decay_info-'+fileName+'.root', 'recreate')
 ntuple = ROOT.TNtuple('tree', 'tree', ':'.join(branches))
 decayIndexNtuple = ROOT.TNtuple('decayIndexTree', 'decayIndexTree', 'decayIndex')
 tofill = OrderedDict(zip(branches, [np.nan]*len(branches)))
@@ -382,6 +391,7 @@ for i, event in enumerate(events):
         
 logfile.close()
 
+print("alldecays size:", len(alldecays))
 # sorted_alldecays = {k: v for k, v in sorted(alldecays.items(), key=lambda item: item[1])}
 alldecays = sorted(alldecays.items(), key=lambda x: x[1], reverse=True)
 
@@ -415,10 +425,11 @@ for v in already_done.values():
 
 
 sorted_all_decays_merged = OrderedDict(sorted(sorted_all_decays_merged.items(), key=lambda x: x[1], reverse=True))
+print("sorted_all_decays_merged size:", len(sorted_all_decays_merged))
 
 sorted_decay_index = {decay_name: index for index, decay_name in enumerate(sorted_all_decays_merged.keys())}
 
-with open(destination+"decay_dictionary-"+inputFile.replace('.root','.txt'), "w") as decay_dict_out:
+with open(destination+"decay_dictionary-"+fileName+'.txt', "w") as decay_dict_out:
     for index, decay_name in enumerate(sorted_all_decays_merged.keys()):
         print(index, decay_name, file = decay_dict_out)
 
@@ -433,7 +444,7 @@ ntuple.Write()
 decayIndexNtuple.Write()
 fout.Close()
 
-with open(destination+'decay_test-'+inputFile.replace('.root','.pkl'), 'wb') as fout:
+with open(destination+'decay_test-'+fileName+'.pkl', 'wb') as fout:
 #     pickle.dump(sorted_all_decays, fout)
     pickle.dump(sorted_all_decays_merged, fout)
 
