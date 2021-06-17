@@ -18,20 +18,20 @@ import particle
 from particle import Particle
 
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('--inputFiles'    , dest='inputFiles'    , required=True, type=str)
-parser.add_argument('--files_per_job', dest='files_per_job', default=2    , type=int)
-parser.add_argument('--jobid'        , dest='jobid'        , default=0    , type=int)
-parser.add_argument('--verbose'      , dest='verbose'      , action='store_true' )
-parser.add_argument('--destination'  , dest='destination'  , default='./'  , type=str)
-parser.add_argument('--maxevents'    , dest='maxevents'    , default=-1   , type=int)
+parser.add_argument('--inputFiles'   , dest='inputFiles' , required=True, type=str)
+parser.add_argument('--verbose'      , dest='verbose'    , action='store_true' )
+parser.add_argument('--destination'  , dest='destination', default='./' , type=str)
+parser.add_argument('--filename'     , dest='filename'   , required=True, type=str)
+parser.add_argument('--maxevents'    , dest='maxevents'  , default=-1   , type=int)
+parser.add_argument('--miniaod'      , dest='is_miniaod' , action='store_true')
 args = parser.parse_args()
 
-inputFiles     = args.inputFiles
-files_per_job = args.files_per_job
-jobid         = args.jobid
-verbose       = args.verbose
+inputFiles    = args.inputFiles
 destination   = args.destination
+fileName      = args.filename
 maxevents     = args.maxevents
+is_miniaod    = args.is_miniaod
+verbose       = args.verbose
 
 diquarks = [
     1103,
@@ -102,69 +102,126 @@ def printAncestors(particle, ancestors=[], verbose=True):
         else:
             pass
 
-def printOffspring(particle, indent=0, file=None):
+def numberOfPackedDaughters(particle, packedLinks):
+    packedDauLen = 0
+    if packedLinks is not None and ROOT.addressof(particle) in packedLinks:
+        packedDauLen = len(packedLinks[ROOT.addressof(particle)])
+    
+    return packedDauLen
+
+def printOffspring(particle, indent=0, file=None, packedLinks=None):
     for idau in range(particle.numberOfDaughters()):
         daughter = particle.daughter(idau)
         try:
             print(' '*8*indent, '|---->', Particle.from_pdgid(daughter.pdgId()).name, '\t pt {0:>5}  eta {1:>5}  phi {2:>5}'.format('%.1f'%daughter.pt(), '%.2f'%daughter.eta(), '%.2f'%daughter.phi()), file=file)
         except:
             print(' '*8*indent, '|---->', 'pdgid', daughter.pdgId(), '\t pt {0:>5}  eta {1:>5}  phi {2:>5}'.format('%.1f'%daughter.pt(), '%.2f'%daughter.eta(), '%.2f'%daughter.phi()), file=file)
-        printOffspring(daughter, indent+1, file=file)
-    
-def decayChainToLabel(particle, label='', generation=0):
-    if generation==0:
-        label += '%d' %particle.pdgId()
-    generation += 1
-    for idau in range(particle.numberOfDaughters()):
-        if idau==0: 
-            label += '('
-        daughter = particle.daughter(idau)
-        # don't count FSR photon. Fingers crossed, hope this is the correct way...        
-#         if daughter.pdgId()==22 and \
-#            particle.isLastCopy() and \
-#            particle.isLastCopyBeforeFSR():
-#             continue
-        # nope... not correct
-        label += '%d,' %daughter.pdgId()
-        if daughter.numberOfDaughters()>0:
-            label = decayChainToLabel(daughter, label, generation=generation)
-        if idau==particle.numberOfDaughters()-1:
-            label += '),'
-    generation -= 1
-    
-    label = label.replace(',(', '(')
-    label = label.replace(',)', ')')
-    if label.endswith(','):
-        label = label[:-1]
+        printOffspring(daughter, indent+1, file=file, packedLinks=packedLinks)
+        
+    if numberOfPackedDaughters(particle, packedLinks) > 0:
+        for daughter in packedLinks[ROOT.addressof(particle)]:
+            try:
+                print(' '*8*indent, '|---->', Particle.from_pdgid(daughter.pdgId()).name, '\t pt {0:>5}  eta {1:>5}  phi {2:>5}'.format('%.1f'%daughter.pt(), '%.2f'%daughter.eta(), '%.2f'%daughter.phi()), file=file)
+            except:
+                print(' '*8*indent, '|---->', 'pdgid', daughter.pdgId(), '\t pt {0:>5}  eta {1:>5}  phi {2:>5}'.format('%.1f'%daughter.pt(), '%.2f'%daughter.eta(), '%.2f'%daughter.phi()), file=file)
 
-    return label
+class SortingNode():
+    def __init__(self, val, daughters):
+        self.val = val
+        self.daughters = daughters
+        
+        self.daughters.sort()
     
-def hasSecondD(muAncestors):    
+    def __str__(self):
+        label = '%d' %self.val
+        if len(self.daughters) > 0:
+            dauLabels = [str(dau) for dau in self.daughters]
+            label += '(' + ','.join(dauLabels) + ')'
+        label = label.replace('),', ')')
+        return label
+    
+    def __eq__(self, other):
+        return self.val == other.val and self.daughters == other.daughters
+    
+    def __lt__(self, other):
+        if len(self.daughters) > 0 and len(other.daughters) == 0:
+            return True
+        
+        if len(self.daughters) == 0 and len(other.daughters) > 0:
+            return False
+            
+        if len(self.daughters) > 0 and len(other.daughters) > 0:
+            if abs(self.val) == abs(other.val):
+                if self.daughters == other.daughters:
+                    return False 
+                return self.daughters > other.daughters
+        return abs(self.val) > abs(other.val)
+
+def decayChainToSortTree(particle, packedLinks=None):
+    daughters = []
+    
+    for idau in range(particle.numberOfDaughters()):
+        daughter = particle.daughter(idau)
+        daughters.append(decayChainToSortTree(daughter, packedLinks=packedLinks))
+    
+    if numberOfPackedDaughters(particle, packedLinks) > 0:
+        for idau, daughter in enumerate(packedLinks[ROOT.addressof(particle)]):
+            daughters.append(decayChainToSortTree(daughter, packedLinks=packedLinks))
+            
+    node = SortingNode(particle.pdgId(), daughters)
+    
+    return node
+
+def decayChainToLabel(particle, packedLinks=None):
+
+    decayTree = decayChainToSortTree(particle, packedLinks=packedLinks)
+    
+    return str(decayTree)
+    
+def hasSecondD(muAncestors):
     return any([(ianc.pdgId() > 400 and ianc.pdgId() < 500) or (ianc.pdgId() > 4000 and ianc.pdgId() < 5000) for ianc in muAncestors])
+    
+def makePackedLinks(packedCollection):
+    links = {}
+    
+    for particle in packedCollection:
+        # packedGenParticles only have one mother and it may be themselves
+        mum = particle.lastPrunedRef().get()
+        
+        if mum.status() == 1:
+            # we are in prunedGenParticles and mother is us, no need for link
+            continue
+        
+        # use address, as hashing the particles does not work properly
+        links.setdefault(ROOT.addressof(mum), []).append(particle)
+    
+    return links
     
 handles = OrderedDict()
 
-#handles['genp'   ] = ('genParticles', Handle('std::vector<reco::GenParticle>'))
-# for MINIAOD
-handles['genp'   ] = ('prunedGenParticles', Handle('std::vector<reco::GenParticle>'))
-
 handles['genInfo'] = ('generator', Handle('GenEventInfoProduct'))
+
+handles['genp'   ] = ('genParticles', Handle('std::vector<reco::GenParticle>'))
+if is_miniaod:
+    handles['genp'   ] = ('prunedGenParticles', Handle('std::vector<reco::GenParticle>'))
+    handles['pgp'   ] = ('packedGenParticles', Handle('std::vector<pat::PackedGenParticle>'))
 
 files = glob(inputFiles)
 if ('txt' in inputFiles):
-  with open(inputFiles) as f:
-    files = f.read().splitlines()
+    with open(inputFiles) as f:
+        files = f.read().splitlines()
     files = ["root://cmsxrootd.fnal.gov/"+localFile for localFile in files]
-else:
-  print("files:", files)
 
+print("files:", files)
 #fileName = files[0] # need to strip path
 fileName = "inspectorOut"
 
 # events = Events(files[:20])
 events = Events(files)
+# maxevents = 2e5
 maxevents = maxevents if maxevents>=0 else events.size() # total number of events in the files
 
+# logfile = open('RDst_InclusiveHbToDstMu_no_acceptance_fullstat_test.txt', 'w')
 logfile = open(destination+fileName+'.txt', 'w')
 
 start = time()
@@ -250,7 +307,18 @@ for i, event in enumerate(events):
     
     dsts  = [ip for ip in event.genp if abs(ip.pdgId())==413]
 #     muons = [ip for ip in event.genp if abs(ip.pdgId())==13 and ip.status()==1 and ip.pt()>7. and abs(ip.eta())<1.5]
-    muons = sorted([ip for ip in event.genp if abs(ip.pdgId())==13 and ip.status()==1], key = lambda ip: ip.pt(), reverse = True)
+    muons = [ip for ip in event.genp if abs(ip.pdgId())==13 and ip.status()==1]
+    if is_miniaod:
+        # this should not be needed, but we never know
+        packed_muons = [ip for ip in event.pgp if abs(ip.pdgId())==13 and ip.lastPrunedRef().status() != 1]
+    else:
+        packed_muons = []
+    
+    muons = sorted(muons + packed_muons, key = lambda ip: ip.pt(), reverse = True)
+    
+    packedLinks = None
+    if is_miniaod:
+        packedLinks = makePackedLinks(event.pgp)
     
     used_ancestors = set()
     for ids, imu in product(dsts, muons):
@@ -314,10 +382,10 @@ for i, event in enumerate(events):
             print(ib.pdgId(), end='', file=logfile)
         print('\t pt {0:>5}  eta {1:>5}  phi {2:>5}'.format('%.1f'%ib.pt(), '%.2f'%ib.eta(), '%.2f'%ib.phi()), file=logfile)
         
-        printOffspring(ib, file=logfile)
-#         import pdb ; pdb.set_trace()
-        decayName = decayChainToLabel(ib, label='')
-#         print(decayName)
+        printOffspring(ib, file=logfile, packedLinks = packedLinks)
+#        import pdb ; pdb.set_trace()
+        decayName = decayChainToLabel(ib, packedLinks = packedLinks)
+#        print(decayName)
         if decayName in alldecays.keys():
             alldecays[decayName] += 1
         else:
@@ -325,13 +393,14 @@ for i, event in enumerate(events):
             decay_index[decayName] = next_decay_index
             next_decay_index += 1
         
-        if ids.ancestors[-1] in used_ancestors:
+        if ROOT.addressof(ids.ancestors[-1]) in used_ancestors:
             # a different pair with this ancestor was already registered in this event
             # possibly a decay with 2 muons and a Dst
             # we keep only the highest pt muon, as we sorted the muons before
             continue
 
-        used_ancestors.add(ids.ancestors[-1])
+        # use address as hashing the particles does not work
+        used_ancestors.add(ROOT.addressof(ids.ancestors[-1]))
         
         b_lab_p4 = imu.p4() + ids.p4()
         b_scaled_p4 = b_lab_p4 * ((particle.literals.B_0.mass/1000)/b_lab_p4.mass())

@@ -1,6 +1,9 @@
 import re
 import pickle
+import argparse
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from particle import Particle
 
@@ -39,8 +42,16 @@ def particle_to_latex(pdgid):
             return "\\Xi'_{b}^{+}"
         elif pdgid==5324:
             return '\\Xi*_{b}^{0}'
-        elif pdgid==5324:
+        elif pdgid==-5324:
             return '\\bar{\\Xi}*_{b}^{0}'
+        elif pdgid==5322:
+            return '\\Xi_{b}^{\\prime 0}'
+        elif pdgid==-5322:
+            return '\\bar{\\Xi}_{b}^{\\prime 0}'
+        elif pdgid==543:
+            return 'B*_{c}^+'
+        elif pdgid==-543:
+            return '\\bar{B}*_{c}^+'
         print('pdg not found', pdgid)    
         return ' %d'%pdgid
 #         import pdb ; pdb.set_trace()
@@ -63,6 +74,11 @@ def relabel(label):
         else:
             pdgid += i
     return newlabel+'$'
+    
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('inputFile', type=str)
+parser.add_argument('--outputFile', default="decay_frequency_no_acceptance_fullstat", type=str)
+args = parser.parse_args()
 
 # ff = open('decay_with_stars.pkl')
 # ff = open('decay.pkl')
@@ -72,7 +88,7 @@ def relabel(label):
 # ff = open('test.pkl')
 #ff = open('test_17may.pkl')
 #ff = open('decay_test-QCD_Pt15to20.pkl')
-ff = open('decay_test-RDst_InclusiveHbToDstMu-pythia_1.pkl')
+ff = open(args.inputFile)
 
 decays = pickle.load(ff)
 ff.close()
@@ -108,6 +124,7 @@ if len(frequency) < chunk_size:
 
 counter = 1
 tot = len(frequency) % chunk_size + 1
+tot = 2
 for ichunk in range(tot):
     if counter > 4: break
     print('doing chunk {0} of {1}'.format(counter, tot))
@@ -152,10 +169,11 @@ for ichunk in range(tot):
 
     print('saving plot')
     # plt.savefig('decay_frequency_nicer.pdf')
-    plt.savefig('allDecays/decay_frequency_no_acceptance_fullstat_chunk%d.pdf' %counter)
+    plt.savefig('allDecays/' + args.outputFile + '_chunk' + str(counter) + '.pdf')
     # just pdf to halve running time
     #plt.savefig('allDecays/decay_frequency_no_acceptance_fullstat_chunk%d.png' %counter)
     
 #     fig.clf()
     
     counter += 1
+
